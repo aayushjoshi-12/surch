@@ -1,0 +1,4 @@
+requests
+streamlit
+langchain_huggingface
+bs4
