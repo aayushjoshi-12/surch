@@ -46,4 +46,4 @@ def get_answer(prompt):
     ]
     context = r"".join([get_context(url) for url in top_url])
     answer = llm_chain.invoke({"context": context, "prompt": prompt})
-    return answer
+    return answer['content']
