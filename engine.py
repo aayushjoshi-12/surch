@@ -1,18 +1,20 @@
 import requests
 import streamlit as st
-from langchain.chains import create_retrieval_chain, create_history_aware_retriever
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.chat_message_histories import SQLChatMessageHistory
+from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_huggingface import HuggingFaceEmbeddings, HuggingFaceEndpoint
+from langchain_groq import ChatGroq
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 ACCESS_TOKEN = st.secrets["ACCESS_TOKEN"]
 API_KEY = st.secrets["API_KEY"]
 CSE_ID = st.secrets["CSE_ID"]
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 
 system_prompt = (
     "You are an assistant for question-answering tasks. "
@@ -50,20 +52,20 @@ qa_prompt = ChatPromptTemplate.from_messages(
 
 class SurchEngine:
     def __init__(self, user_id, conversation_id):
-        self.session_id = f"{user_id}-{conversation_id}"        
+        self.session_id = f"{user_id}-{conversation_id}"
         self.config = {"configurable": {"session_id": self.session_id}}
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, chunk_overlap=100
         )
         self.vectorstore = Chroma(
-            collection_name=self.session_id, embedding_function=HuggingFaceEmbeddings()
+            collection_name=self.session_id,
+            embedding_function=HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={"device": "cpu"},
+            ),
         )
         self.retriever = self.vectorstore.as_retriever()
-        self.llm = HuggingFaceEndpoint(
-            repo_id="mistralai/Mistral-7B-Instruct-v0.3",
-            task="question-answering",
-            huggingfacehub_api_token=ACCESS_TOKEN,
-        )
+        self.llm = ChatGroq(model="mistral=saba-24b", api_key=GROQ_API_KEY)
         self.history_aware_retriever = create_history_aware_retriever(
             self.llm, self.retriever, contextualize_q_prompt
         )
@@ -93,21 +95,29 @@ class SurchEngine:
         return links
 
     def get_context(self, links):
-        loader = WebBaseLoader(links)
+        loader = WebBaseLoader(
+            links
+        )  # use recursiveurlloader with bs4 to get more context
         docs = loader.load()
         splits = self.splitter.split_documents(docs)
         self.vectorstore.add_documents(splits)
 
     def get_session_history(self):
-        return SQLChatMessageHistory(self.session_id, "sqlite:///memory.db", table_name="message_store")
+        return SQLChatMessageHistory(
+            self.session_id, "sqlite:///memory.db", table_name="message_store"
+        )
 
     def first_question(self, query):
         links = self.google_search(query)
         self.get_context(links)
-        return self.conversational_rag_chain.invoke({"input": query}, config=self.config)["answer"]
+        return self.conversational_rag_chain.invoke(
+            {"input": query}, config=self.config
+        )["answer"]
 
     def follow_up_question(self, query):
-        return self.conversational_rag_chain.invoke({"input": query}, config=self.config)["answer"]
+        return self.conversational_rag_chain.invoke(
+            {"input": query}, config=self.config
+        )["answer"]
 
 
 # we can use tools and langsmith that would not require memory

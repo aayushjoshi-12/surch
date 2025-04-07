@@ -13,9 +13,11 @@ git clone https://github.com/aayushjoshi-12/surch.git
 cd surch
 ```
 
-2. Install the required packages:
+2. Install the required packages and set up environment:
 ```bash
-pip install -r requirements.txt
+uv sync
+uv venv
+source .venv/bin/activate
 ```
 
 3. Set up your API keys in the Streamlit secrets file (`.streamlit/secrets.toml`):
@@ -23,6 +25,7 @@ pip install -r requirements.txt
 API_KEY = "your_google_api_key"
 CSE_ID = "your_custom_search_engine_id"
 ACCESS_TOKEN = "your_huggingface_access_token"
+GROQ_API_KEY = "your_groq_api_key"
 ```
 
 ## Usage

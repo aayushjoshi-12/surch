@@ -1,7 +1,0 @@
-requests
-streamlit
-langchain_huggingface
-langchain_community
-langchain_chroma
-chromadb
-bs4

@@ -1,12 +1,12 @@
 from bs4 import BeautifulSoup
 import requests
-from langchain_huggingface import HuggingFaceEndpoint
 from langchain_core.prompts import PromptTemplate
+from langchain_groq import ChatGroq
 import streamlit as st
 
 api_key = st.secrets["API_KEY"]
 cse_id = st.secrets["CSE_ID"]
-access_token = st.secrets["ACCESS_TOKEN"]
+groq_api_key = st.secrets["GROQ_API_KEY"]
 
 template = """
 system: you are a summarizer that finds the answer the user is looking for in the context provided by the google search results top links.
@@ -18,13 +18,7 @@ user: {prompt}
 
 prompt = PromptTemplate.from_template(template)
 
-repo_id = "mistralai/Mistral-7B-Instruct-v0.3"
-
-llm = HuggingFaceEndpoint(
-    repo_id=repo_id,
-    temperature=0.5,
-    huggingfacehub_api_token=access_token,
-)
+llm = ChatGroq(model="mistral-saba-24b", api_key=groq_api_key)
 
 llm_chain = prompt | llm
 
